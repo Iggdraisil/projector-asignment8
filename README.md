@@ -73,20 +73,3 @@
     Shortest transaction:           2.19
 
 ```
-### *Concurrency 120*:
-
-```
-    Transactions:                   1418 hits
-    Availability:                  99.72 %
-    Elapsed time:t                  60.55 secs
-    Data transferred:               1.83 MB
-    Response time:                  5.08 secs
-    Transaction rate:              23.42 trans/sec
-    Throughput:                     0.03 MB/sec
-    Concurrency:                  118.89
-    Successful transactions:        1418
-    Failed transactions:               4
-    Longest transaction:            8.45
-    Shortest transaction:           3.00
-
-```
