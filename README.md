@@ -1,57 +1,92 @@
-# TIG stack (Telegraf/InfluxDB/Grafana)
-[Telegraf](https://www.influxdata.com/time-series-platform/telegraf/) is a plugin-driven server agent for collecting and reporting metrics.  
-[InfluxDB](https://www.influxdata.com/time-series-platform/influxdb/) handle massive amounts of time-stamped information.  
-[Grafana](https://grafana.com/) is an open platform for beautiful analytics and monitoring.  
+# Load testing homework:
 
-![System dashboard](./docs/system_dashboard.png?raw=true "System dashboard")
-![Docker dashboard](./docs/docker_dashboard.png?raw=true "Docker dashboard")
+## To launch run: 
+- `docker-compose up --build`
+- `siege -f urls.txt -c${CONCURRENCY} -t1m`
 
-## Requirements
-As docker images, TIG stack needs:
 
-* docker v18.* at least
-* docker-compose v1.2* at least
+## Results Table
 
-To be installed on your machine.
+### *Concurrency 10*:
+```
+    Transactions:                   1480 hits
+    Availability:                 100.00 %
+    Elapsed time:                  60.48 secs
+    Data transferred:               2.07 MB
+    Response time:                  0.41 secs
+    Transaction rate:              24.47 trans/sec
+    Throughput:                     0.03 MB/sec
+    Concurrency:                    9.95
+    Successful transactions:        1480
+    Failed transactions:               0
+    Longest transaction:            0.73
+    Shortest transaction:           0.28
 
-## How to use it?
-`.env` to the root directory exposes environment variables:
-
-* **TELEGRAF_HOST** - agent hostname
-* **INFLUXDB_HOST** - database hostname
-* **INFLUXDB_PORT** - database port
-* **INFLUXDB_DATABASE** - database name
-* **INFLUXDB_ADMIN_USER** - admin user
-* **INFLUXDB_ADMIN_PASSWORD** - admin password
-* **GRAFANA_PORT** - monitoring port
-* **GRAFANA_USER** - monitoring user
-* **GRAFANA_PASSWORD** - monitoring password
-* **GRAFANA_PLUGINS_ENABLED** - enable monitoring plugins
-* **GRAFANA_PLUGINS** - monitoring plugins list (fetch all available plugins if empty)
-
-Modify it according to your needs and build your custom TIG stack:
-
-```bash
-$ docker compose up -d
 ```
 
-### Known issues
-* `docker compose` command fails for non-root user
-    1. Create the `docker` group if not exists:
+### *Concurrency 20*:
+```
+    Transactions:                   1399 hits
+    Availability:                 100.00 %
+    Elapsed time:                  60.23 secs
+    Data transferred:               1.86 MB
+    Response time:                  0.85 secs
+    Transaction rate:              23.23 trans/sec
+    Throughput:                     0.03 MB/sec
+    Concurrency:                   19.78
+    Successful transactions:        1399
+    Failed transactions:               0
+    Longest transaction:            2.37
+    Shortest transaction:           0.27
 
-    ```bash
-    $ sudo groupadd docker
-    ``` 
+```
 
-    2. Add your user to the `docker` group:
+### *Concurrency 50*:
+```
+    Transactions:                   1494 hits
+    Availability:                 100.00 %
+    Elapsed time:                  60.31 secs
+    Data transferred:               2.05 MB
+    Response time:                  1.98 secs
+    Transaction rate:              24.77 trans/sec
+    Throughput:                     0.03 MB/sec
+    Concurrency:                   49.09
+    Successful transactions:        1494
+    Failed transactions:               0
+    Longest transaction:            3.62
+    Shortest transaction:           0.45
+```
+### *Concurrency 100*:
 
-    ```bash
-    $ sudo usermod -aG docker $USER
-    ```
+```
+    Transactions:                   1481 hits
+    Availability:                  99.60 %
+    Elapsed time:                  60.59 secs
+    Data transferred:               1.92 MB
+    Response time:                  3.96 secs
+    Transaction rate:              24.44 trans/sec
+    Throughput:                     0.03 MB/sec
+    Concurrency:                   96.68
+    Successful transactions:        1481
+    Failed transactions:               6
+    Longest transaction:            6.91
+    Shortest transaction:           2.19
 
-    3. Reboot your machine
+```
+### *Concurrency 120*:
 
-Then access graphana at `http://localhost:3000`.
+```
+    Transactions:                   1418 hits
+    Availability:                  99.72 %
+    Elapsed time:t                  60.55 secs
+    Data transferred:               1.83 MB
+    Response time:                  5.08 secs
+    Transaction rate:              23.42 trans/sec
+    Throughput:                     0.03 MB/sec
+    Concurrency:                  118.89
+    Successful transactions:        1418
+    Failed transactions:               4
+    Longest transaction:            8.45
+    Shortest transaction:           3.00
 
-## License
-Copyright © 2020 Alexis Le Provost. See LICENSE for details.
+```
