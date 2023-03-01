@@ -1,56 +1,104 @@
-import asyncio
+import csv
+import itertools
 import os
+import random
+import secrets
+from functools import cache
 
+from cache import AsyncLRU
 from fastapi import FastAPI, Depends
-from motor.motor_asyncio import AsyncIOMotorClient, AsyncIOMotorDatabase, AsyncIOMotorCollection
-from elasticsearch import AsyncElasticsearch
-from pymongo.collection import Collection
+from motor.motor_asyncio import (
+    AsyncIOMotorClient,
+    AsyncIOMotorDatabase,
+    AsyncIOMotorCollection,
+)
 
 app = FastAPI()
 
+DOCS_NUM = 100000
 
-def mongo_db_dep() -> AsyncIOMotorDatabase:
+
+def chunked_iterable(iterable, size):
+    it = iter(iterable)
+    while True:
+        chunk = tuple(itertools.islice(it, size))
+        if not chunk:
+            break
+        yield chunk
+
+
+@AsyncLRU(maxsize=1)
+async def mongo_db() -> AsyncIOMotorDatabase:
     return AsyncIOMotorClient(
         os.environ.get("MONGODB_HOST", "localhost"),
         int(os.environ.get("MONGODB_PORT", "27017")),
     ).test_database
 
 
-async def elastic_dep() -> AsyncElasticsearch:
-    elasticsearch = AsyncElasticsearch(
-        f'http://{os.environ.get("ELASTIC_HOST", "localhost")}:{os.environ.get("ELASTIC_PORT", "9200")}'
-    )
-    bar = not await elasticsearch.indices.get(index="foo", ignore_unavailable=True)
-    if bar:
-        await elasticsearch.indices.create(index="foo")
-    await elasticsearch.update(index="foo", id="bar", doc={"baz": 1}, upsert={"baz": 1})
-    return elasticsearch
+@cache
+def new_cities() -> list[dict]:
+    result = []
+    with open("cities-new.csv") as cities:
+        reader = csv.reader(cities, delimiter=';')
+        field_names = next(reader)
+        for record in chunked_iterable(reader, 10000):
+            result += [dict(zip(field_names, [safe_int(value) for value in item])) for item in record]
+    return result
+
+
+async def mongo_db_dep() -> AsyncIOMotorDatabase:
+    return await mongo_db()
+
+
+def safe_int(value: str) -> str | int:
+    try:
+        return int(value)
+    except ValueError:
+        return value
+
+
+@app.on_event('startup')
+async def load_mongo():
+    db = await mongo_db()
+    collection: AsyncIOMotorCollection = db.foo_collection
+    await collection.drop()
+    with open("cities.csv") as cities:
+        reader = csv.reader(cities, delimiter=';')
+        field_names = next(reader)
+        for record in chunked_iterable(reader, 10000):
+            await collection.insert_many(
+                [dict(zip(field_names, [safe_int(value) for value in item])) for item in record])
 
 
 @app.get("/test")
 async def say_hello(
-        name: str = 'Pizza',
-        mongo: AsyncIOMotorDatabase = Depends(mongo_db_dep),
-        elastic: AsyncElasticsearch = Depends(elastic_dep),
+        population: int,
+        mongo: AsyncIOMotorDatabase = Depends(mongo_db_dep, use_cache=True),
 ):
-    result, _ = await asyncio.gather(
-        touch_mongo(mongo, name),
-        touch_elastic(elastic, name)
-    )
+    result = await touch_mongo(mongo, population)
     return result
 
 
-async def touch_elastic(elastic: AsyncElasticsearch, name: str):
-    result = await elastic.get(index="foo", id="bar") or {'baz': 1}
-    result['_source']['baz'] += 1
-    await elastic.update(index="foo", id="bar", doc=result['_source'] | {'name': name})
-
-
-async def touch_mongo(mongo, name):
-    collection = mongo.foo_collection
-    result = await collection.find_one({'foo': {'$gt': 0}})
-    if not result:
-        await collection.insert_one({"foo": 1})
-    else:
-        await collection.replace_one({'_id': result['_id']}, {'foo': result['foo'] + 1, 'name': name})
-    return {"message": f"Hello"}
+async def touch_mongo(mongo, population):
+    collection: AsyncIOMotorCollection = mongo.foo_collection
+    result = await collection.aggregate([
+        {
+            "$match": {
+                "Population": {
+                    "$gt": population * 0.9,
+                    "$lt": population * 1.1,
+                }
+            },
+        },
+        {
+            "$group": {
+                "_id": {"Country Code": "$Country Code"},
+                "totalPopulation": {"$sum": "$Population"},
+                "averageHeight": {"$avg": "$DIgital Elevation Model"}
+            }
+        }
+    ]).to_list(None)
+    new_city = random.choice(new_cities())
+    new_city['_id'] = secrets.token_urlsafe(23)
+    await collection.insert_one(new_city)
+    return result
