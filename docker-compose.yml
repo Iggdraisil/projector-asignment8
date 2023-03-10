@@ -4,29 +4,10 @@ services:
     nginx:
         build: ./nginx
         container_name: nginx
+        extra_hosts:
+            - "host.docker.internal:host-gateway"
         ports: 
             - 8080:8080
-        links:
-            - application
         restart: always
         env_file:
             - .env
-
-    mongodb:
-        image: mongo
-        container_name: mongodb
-        ports: 
-          - 27017:27017
-        restart: always
-        env_file:
-            - .env
-
-    application:
-        build: ./application
-        container_name: application
-        links:
-          - mongodb
-        restart: always
-        env_file:
-            - .env
-
